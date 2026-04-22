@@ -9,11 +9,17 @@ from app.db import engine, get_db
 from app.models import Event, Transaction, Merchant
 from app.schemas import EventCreate
 
-# Create tables
-models.Base.metadata.create_all(bind=engine)
-
+# ✅ FIRST define app
 app = FastAPI(title="Payment Reconciliation System")
 
+# ✅ THEN use it
+@app.on_event("startup")
+def startup():
+    try:
+        models.Base.metadata.create_all(bind=engine)
+        print("✅ DB connected & tables ready")
+    except Exception as e:
+        print("❌ DB connection failed:", e)
 
 # -----------------------------
 # ROOT
