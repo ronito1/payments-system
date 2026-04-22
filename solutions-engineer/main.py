@@ -1,8 +1,8 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text, func
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from app import models
 from app.db import engine, get_db
@@ -12,7 +12,7 @@ from app.schemas import EventCreate
 # ✅ FIRST define app
 app = FastAPI(title="Payment Reconciliation System")
 
-# ✅ THEN use it
+# ✅ STARTUP
 @app.on_event("startup")
 def startup():
     try:
@@ -28,7 +28,6 @@ def startup():
 def read_root():
     return {"message": "Welcome to the Payment Reconciliation API"}
 
-
 # -----------------------------
 # DB TEST
 # -----------------------------
@@ -39,7 +38,6 @@ def test_db(db: Session = Depends(get_db)):
         return {"status": "connected", "result": str(result)}
     except Exception as e:
         return {"status": "error", "message": str(e)}
-
 
 # -----------------------------
 # SINGLE EVENT INGESTION
@@ -53,10 +51,7 @@ def ingest_event(event: EventCreate, db: Session = Depends(get_db)):
 
     merchant = db.query(Merchant).filter(Merchant.id == event.merchant_id).first()
     if not merchant:
-        merchant = Merchant(
-            id=event.merchant_id,
-            name=event.merchant_name or ""
-        )
+        merchant = Merchant(id=event.merchant_id, name=event.merchant_name or "")
         db.add(merchant)
 
     txn = db.query(Transaction).filter(Transaction.id == event.transaction_id).first()
@@ -86,6 +81,7 @@ def ingest_event(event: EventCreate, db: Session = Depends(get_db)):
     )
     db.add(new_event)
 
+    # update status
     if event.event_type == "payment_initiated":
         txn.status = "initiated"
     elif event.event_type == "payment_processed":
@@ -98,30 +94,25 @@ def ingest_event(event: EventCreate, db: Session = Depends(get_db)):
     txn.updated_at = datetime.utcnow()
 
     db.commit()
-
     return {"message": "Event processed successfully"}
 
-
 # -----------------------------
-# BULK INGESTION (FIXED)
+# BULK INGESTION
 # -----------------------------
 @app.post("/events/bulk")
 def ingest_bulk(events: List[EventCreate], db: Session = Depends(get_db)):
 
     processed = 0
     skipped = 0
-
-    seen_event_ids = set()  # 🔥 fix for in-batch duplicates
+    seen_event_ids = set()
 
     for event in events:
 
-        # 🚨 skip duplicates inside same batch
         if event.event_id in seen_event_ids:
             skipped += 1
             continue
         seen_event_ids.add(event.event_id)
 
-        # skip duplicates already in DB
         existing = db.query(Event).filter(Event.event_id == event.event_id).first()
         if existing:
             skipped += 1
@@ -129,10 +120,7 @@ def ingest_bulk(events: List[EventCreate], db: Session = Depends(get_db)):
 
         merchant = db.query(Merchant).filter(Merchant.id == event.merchant_id).first()
         if not merchant:
-            merchant = Merchant(
-                id=event.merchant_id,
-                name=event.merchant_name or ""
-            )
+            merchant = Merchant(id=event.merchant_id, name=event.merchant_name or "")
             db.add(merchant)
 
         txn = db.query(Transaction).filter(Transaction.id == event.transaction_id).first()
@@ -162,7 +150,7 @@ def ingest_bulk(events: List[EventCreate], db: Session = Depends(get_db)):
         )
         db.add(new_event)
 
-        # status update
+        # update status
         if event.event_type == "payment_initiated":
             txn.status = "initiated"
         elif event.event_type == "payment_processed":
@@ -173,79 +161,83 @@ def ingest_bulk(events: List[EventCreate], db: Session = Depends(get_db)):
             txn.status = "settled"
 
         txn.updated_at = datetime.utcnow()
-
         processed += 1
 
     db.commit()
-
-    return {
-        "processed": processed,
-        "skipped_duplicates": skipped
-    }
-
+    return {"processed": processed, "skipped_duplicates": skipped}
 
 # -----------------------------
-# TRANSACTIONS LIST
+# TRANSACTIONS (UPGRADED)
 # -----------------------------
 @app.get("/transactions")
-def get_transactions(db: Session = Depends(get_db)):
-    txns = db.query(Transaction).all()
+def get_transactions(
+    merchant_id: Optional[str] = None,
+    status: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    page: int = 1,
+    limit: int = 10,
+    db: Session = Depends(get_db)
+):
+    query = db.query(Transaction)
 
-    return [
-        {
-            "id": t.id,
-            "merchant_id": t.merchant_id,
-            "amount": float(t.amount),
-            "currency": t.currency,
-            "status": t.status,
-            "created_at": t.created_at,
-            "updated_at": t.updated_at
-        }
-        for t in txns
-    ]
+    if merchant_id:
+        query = query.filter(Transaction.merchant_id == merchant_id)
 
+    if status:
+        query = query.filter(Transaction.status == status)
+
+    if start_date:
+        query = query.filter(Transaction.created_at >= datetime.fromisoformat(start_date))
+
+    if end_date:
+        query = query.filter(Transaction.created_at <= datetime.fromisoformat(end_date))
+
+    query = query.order_by(Transaction.created_at.desc())
+
+    offset = (page - 1) * limit
+    txns = query.offset(offset).limit(limit).all()
+
+    return txns
 
 # -----------------------------
-# SINGLE TRANSACTION
+# SINGLE TRANSACTION (WITH EVENTS)
 # -----------------------------
 @app.get("/transactions/{txn_id}")
 def get_transaction(txn_id: str, db: Session = Depends(get_db)):
+
     txn = db.query(Transaction).filter(Transaction.id == txn_id).first()
 
     if not txn:
         return {"error": "Transaction not found"}
 
+    events = db.query(Event)\
+        .filter(Event.transaction_id == txn_id)\
+        .order_by(Event.timestamp)\
+        .all()
+
     return {
-        "id": txn.id,
-        "merchant_id": txn.merchant_id,
-        "amount": float(txn.amount),
-        "currency": txn.currency,
-        "status": txn.status,
-        "created_at": txn.created_at,
-        "updated_at": txn.updated_at
+        "transaction": txn,
+        "events": events
     }
 
-
 # -----------------------------
-# SUMMARY
+# RECONCILIATION SUMMARY (GROUPED)
 # -----------------------------
 @app.get("/reconciliation/summary")
 def get_summary(db: Session = Depends(get_db)):
 
-    total = db.query(func.count(Transaction.id)).scalar()
-    success = db.query(func.count(Transaction.id))\
-        .filter(Transaction.status == "settled").scalar()
-    failed = db.query(func.count(Transaction.id))\
-        .filter(Transaction.status == "failed").scalar()
-    total_amount = db.query(func.sum(Transaction.amount)).scalar()
+    summary = db.query(
+        Transaction.merchant_id,
+        Transaction.status,
+        func.count().label("count"),
+        func.sum(Transaction.amount).label("total_amount")
+    ).group_by(
+        Transaction.merchant_id,
+        Transaction.status
+    ).all()
 
-    return {
-        "total_transactions": total,
-        "successful_transactions": success,
-        "failed_transactions": failed,
-        "total_amount": float(total_amount or 0)
-    }
-
+    return summary
 
 # -----------------------------
 # DISCREPANCIES
