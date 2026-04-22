@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Query
+from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import text, func
 from datetime import datetime
@@ -7,12 +7,18 @@ from typing import List, Optional
 from app import models
 from app.db import engine, get_db
 from app.models import Event, Transaction, Merchant
-from app.schemas import EventCreate
+from app.schemas import (
+    EventCreate,
+    Transaction as TransactionSchema,
+    Event as EventSchema
+)
 
-# ✅ FIRST define app
+# -----------------------------
+# APP INIT
+# -----------------------------
 app = FastAPI(title="Payment Reconciliation System")
 
-# ✅ STARTUP
+
 @app.on_event("startup")
 def startup():
     try:
@@ -21,12 +27,14 @@ def startup():
     except Exception as e:
         print("❌ DB connection failed:", e)
 
+
 # -----------------------------
 # ROOT
 # -----------------------------
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the Payment Reconciliation API"}
+
 
 # -----------------------------
 # DB TEST
@@ -38,6 +46,7 @@ def test_db(db: Session = Depends(get_db)):
         return {"status": "connected", "result": str(result)}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
 
 # -----------------------------
 # SINGLE EVENT INGESTION
@@ -81,7 +90,7 @@ def ingest_event(event: EventCreate, db: Session = Depends(get_db)):
     )
     db.add(new_event)
 
-    # update status
+    # status updates
     if event.event_type == "payment_initiated":
         txn.status = "initiated"
     elif event.event_type == "payment_processed":
@@ -95,6 +104,7 @@ def ingest_event(event: EventCreate, db: Session = Depends(get_db)):
 
     db.commit()
     return {"message": "Event processed successfully"}
+
 
 # -----------------------------
 # BULK INGESTION
@@ -166,10 +176,11 @@ def ingest_bulk(events: List[EventCreate], db: Session = Depends(get_db)):
     db.commit()
     return {"processed": processed, "skipped_duplicates": skipped}
 
+
 # -----------------------------
-# TRANSACTIONS (UPGRADED)
+# TRANSACTIONS (FILTERED + PAGINATED)
 # -----------------------------
-@app.get("/transactions")
+@app.get("/transactions", response_model=List[TransactionSchema])
 def get_transactions(
     merchant_id: Optional[str] = None,
     status: Optional[str] = None,
@@ -200,6 +211,7 @@ def get_transactions(
 
     return txns
 
+
 # -----------------------------
 # SINGLE TRANSACTION (WITH EVENTS)
 # -----------------------------
@@ -217,9 +229,10 @@ def get_transaction(txn_id: str, db: Session = Depends(get_db)):
         .all()
 
     return {
-        "transaction": txn,
-        "events": events
+        "transaction": TransactionSchema.model_validate(txn),
+        "events": [EventSchema.model_validate(e) for e in events]
     }
+
 
 # -----------------------------
 # RECONCILIATION SUMMARY (GROUPED)
@@ -238,6 +251,7 @@ def get_summary(db: Session = Depends(get_db)):
     ).all()
 
     return summary
+
 
 # -----------------------------
 # DISCREPANCIES
