@@ -34,8 +34,11 @@ def read_root():
 # -----------------------------
 @app.get("/test-db")
 def test_db(db: Session = Depends(get_db)):
-    result = db.execute(text("SELECT 1")).fetchone()
-    return {"status": "connected", "result": str(result)}
+    try:
+        result = db.execute(text("SELECT 1")).fetchone()
+        return {"status": "connected", "result": str(result)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
 # -----------------------------
