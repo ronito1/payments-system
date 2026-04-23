@@ -7,6 +7,7 @@ from app.db import Base
 # Merchant
 # -----------------------------
 class Merchant(Base):
+    """Represents a merchant entity in the database."""
     __tablename__ = "merchants"
     
     id = Column(String, primary_key=True, index=True)
@@ -17,6 +18,7 @@ class Merchant(Base):
 # Transaction
 # -----------------------------
 class Transaction(Base):
+    """Represents a transaction whose state is derived from events."""
     __tablename__ = "transactions"
     
     id = Column(String, primary_key=True, index=True)
@@ -40,6 +42,7 @@ class Transaction(Base):
 # Event
 # -----------------------------
 class Event(Base):
+    """Represents an immutable event in a transaction's lifecycle."""
     __tablename__ = "events"
     
     event_id = Column(String, primary_key=True, index=True, unique=True)

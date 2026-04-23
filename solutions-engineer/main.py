@@ -33,6 +33,7 @@ def startup():
 # -----------------------------
 @app.get("/")
 def read_root():
+    """Health check endpoint to verify API is running."""
     return {"message": "Welcome to the Payment Reconciliation API"}
 
 
@@ -41,6 +42,7 @@ def read_root():
 # -----------------------------
 @app.get("/test-db")
 def test_db(db: Session = Depends(get_db)):
+    """Simple endpoint to test database connectivity."""
     try:
         result = db.execute(text("SELECT 1")).fetchone()
         return {"status": "connected", "result": str(result)}
@@ -53,7 +55,10 @@ def test_db(db: Session = Depends(get_db)):
 # -----------------------------
 @app.post("/events")
 def ingest_event(event: EventCreate, db: Session = Depends(get_db)):
-
+    """
+    Ingests a single transaction event.
+    Updates the transaction state based on the event type.
+    """
     existing = db.query(Event).filter(Event.event_id == event.event_id).first()
     if existing:
         return {"message": "Duplicate event ignored"}
@@ -111,7 +116,10 @@ def ingest_event(event: EventCreate, db: Session = Depends(get_db)):
 # -----------------------------
 @app.post("/events/bulk")
 def ingest_bulk(events: List[EventCreate], db: Session = Depends(get_db)):
-
+    """
+    Ingests multiple transaction events in bulk.
+    Handles deduplication and bulk transaction state updates.
+    """
     processed = 0
     skipped = 0
     seen_event_ids = set()
@@ -190,6 +198,9 @@ def get_transactions(
     limit: int = 10,
     db: Session = Depends(get_db)
 ):
+    """
+    Retrieves transactions with optional filtering and pagination.
+    """
     query = db.query(Transaction)
 
     if merchant_id:
@@ -217,7 +228,9 @@ def get_transactions(
 # -----------------------------
 @app.get("/transactions/{txn_id}")
 def get_transaction(txn_id: str, db: Session = Depends(get_db)):
-
+    """
+    Retrieves a single transaction and its entire event history.
+    """
     txn = db.query(Transaction).filter(Transaction.id == txn_id).first()
 
     if not txn:
@@ -239,7 +252,9 @@ def get_transaction(txn_id: str, db: Session = Depends(get_db)):
 # -----------------------------
 @app.get("/reconciliation/summary")
 def get_summary(db: Session = Depends(get_db)):
-
+    """
+    Generates a reconciliation summary grouped by merchant and transaction status.
+    """
     results = db.query(
         Transaction.merchant_id,
         Transaction.status,
@@ -266,7 +281,9 @@ def get_summary(db: Session = Depends(get_db)):
 # -----------------------------
 @app.get("/reconciliation/discrepancies")
 def get_discrepancies(db: Session = Depends(get_db)):
-
+    """
+    Identifies problematic transactions, such as those stuck in an initiated state.
+    """
     problematic = db.query(Transaction)\
         .filter(Transaction.status == "initiated")\
         .all()

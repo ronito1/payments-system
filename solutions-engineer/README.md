@@ -12,17 +12,17 @@ The system supports bulk ingestion, transaction querying, event tracking, and re
 
 ## Architecture
 
-* **Backend:** FastAPI (Python)
-* **Database:** PostgreSQL (Supabase)
-* **ORM:** SQLAlchemy
-* **Deployment:** Render
+- **Backend:** FastAPI (Python)
+- **Database:** PostgreSQL (Supabase)
+- **ORM:** SQLAlchemy
+- **Deployment:** Render
 
 ### Core Design Principles
 
-* **Event-driven model** → transactions evolve based on events
-* **Idempotency-first ingestion** → duplicate events are ignored safely
-* **Database-driven querying** → filtering, aggregation, pagination handled in SQL
-* **Separation of concerns** → events, transactions, merchants modeled independently
+- **Event-driven model** → transactions evolve based on events
+- **Idempotency-first ingestion** → duplicate events are ignored safely
+- **Database-driven querying** → filtering, aggregation, pagination handled in SQL
+- **Separation of concerns** → events, transactions, merchants modeled independently
 
 ---
 
@@ -30,38 +30,37 @@ The system supports bulk ingestion, transaction querying, event tracking, and re
 
 ### Merchants
 
-* `id` (PK)
-* `name`
+- `id` (PK)
+- `name`
 
 ### Transactions
 
-* `id` (PK)
-* `merchant_id` (FK)
-* `amount`
-* `currency`
-* `status`
-* `created_at`
-* `updated_at`
+- `id` (PK)
+- `merchant_id` (FK)
+- `amount`
+- `currency`
+- `status`
+- `created_at`
+- `updated_at`
 
 ### Events
 
-* `event_id` (PK, UNIQUE)
-* `event_type`
-* `transaction_id` (FK)
-* `merchant_id` (FK)
-* `amount`
-* `currency`
-* `timestamp`
-* `raw_payload`
+- `event_id` (PK, UNIQUE)
+- `event_type`
+- `transaction_id` (FK)
+- `merchant_id` (FK)
+- `amount`
+- `currency`
+- `timestamp`
+- `raw_payload`
 
 ### Indexing
 
-* Indexed fields:
-
-  * `transactions.status`
-  * `transactions.merchant_id`
-  * `events.event_type`
-  * `events.event_id (unique)`
+- Indexed fields:
+  - `transactions.status`
+  - `transactions.merchant_id`
+  - `events.event_type`
+  - `events.event_id (unique)`
 
 These indexes support efficient filtering, aggregation, and reconciliation queries.
 
@@ -71,32 +70,31 @@ These indexes support efficient filtering, aggregation, and reconciliation queri
 
 ### 1. Event Ingestion
 
-* Create single events (`POST /events`)
-* Bulk ingestion (`POST /events/bulk`)
-* Duplicate detection using `event_id`
+- Create single events (`POST /events`)
+- Bulk ingestion (`POST /events/bulk`)
+- Duplicate detection using `event_id`
 
 ### 2. Transaction Management
 
-* Retrieve all transactions with filters:
+- Retrieve all transactions with filters:
+  - merchant_id
+  - status
+  - date range
 
-  * merchant_id
-  * status
-  * date range
-* Pagination support
+- Pagination support
 
 ### 3. Event History
 
-* Retrieve full event history per transaction
-* Ordered chronologically for traceability
+- Retrieve full event history per transaction
+- Ordered chronologically for traceability
 
 ### 4. Reconciliation
 
-* Summary endpoint:
+- Summary endpoint:
+  - Aggregates transactions by merchant & status
 
-  * Aggregates transactions by merchant & status
-* Discrepancy detection:
-
-  * Identifies stuck or inconsistent transactions
+- Discrepancy detection:
+  - Identifies stuck or inconsistent transactions
 
 ---
 
@@ -104,27 +102,27 @@ These indexes support efficient filtering, aggregation, and reconciliation queri
 
 ### Events
 
-* `POST /events`
-* `POST /events/bulk`
+- `POST /events`
+- `POST /events/bulk`
 
 ### Transactions
 
-* `GET /transactions`
-* `GET /transactions/{txn_id}`
+- `GET /transactions`
+- `GET /transactions/{txn_id}`
 
 ### Reconciliation
 
-* `GET /reconciliation/summary`
-* `GET /reconciliation/discrepancies`
+- `GET /reconciliation/summary`
+- `GET /reconciliation/discrepancies`
 
 ---
 
 ## Deployment
 
-* **Live API:**
+- **Live API:**
   https://payments-system-dzt9.onrender.com
 
-* **Swagger Docs:**
+- **Swagger Docs:**
   https://payments-system-dzt9.onrender.com/docs
 
 ---
@@ -167,49 +165,53 @@ postman_collection.json
 Import into Postman and run requests to test all APIs.
 
 ---
+
 ## Data & Testing
 
 The system is designed and tested to handle large-scale event ingestion.
 
 ### Dataset Characteristics
 
-* Supports **10,000+ events across multiple merchants (3+)**
-* Includes a realistic mix of:
-
-  * successful transactions (initiated → processed → settled)
-  * failed transactions
-  * duplicate events (same `event_id`)
-  * inconsistent or unreconciled states (e.g., stuck in initiated/processed)
+- Supports **10,000+ events across multiple merchants (3+)**
+- Includes a realistic mix of:
+  - successful transactions (initiated → processed → settled)
+  - failed transactions
+  - duplicate events (same `event_id`)
+  - inconsistent or unreconciled states (e.g., stuck in initiated/processed)
 
 ### Testing Approach
 
-* Bulk ingestion endpoint (`/events/bulk`) was used to simulate high-volume event processing
-* Duplicate handling was verified via:
+- Bulk ingestion endpoint (`/events/bulk`) was used to simulate high-volume event processing
+- Duplicate handling was verified via:
+  - repeated event submissions
+  - batch-level deduplication
 
-  * repeated event submissions
-  * batch-level deduplication
-* Reconciliation endpoints were validated to:
+- Reconciliation endpoints were validated to:
+  - correctly aggregate transaction states
+  - identify incomplete or inconsistent transactions
 
-  * correctly aggregate transaction states
-  * identify incomplete or inconsistent transactions
+### Bulk Data Loader
+
+A script (`load_data.py`) also is included to simulate large-scale ingestion using the sample dataset.
+
+It sends events in batches to the bulk ingestion endpoint to test performance and idempotency.
 
 ### Note
 
 Due to deployment constraints, full dataset ingestion is not persisted in the live environment, but the system is designed to handle such scale efficiently through:
 
-* indexed queries
-* database-level aggregation
-* idempotent event processing
+- indexed queries
+- database-level aggregation
+- idempotent event processing
 
 ---
 
 ## Idempotency Handling
 
-* Enforced via **unique constraint on `event_id`**
-* Duplicate events are:
-
-  * ignored at DB level
-  * safely skipped during bulk ingestion
+- Enforced via **unique constraint on `event_id`**
+- Duplicate events are:
+  - ignored at DB level
+  - safely skipped during bulk ingestion
 
 This ensures no duplicate transaction updates or corruption.
 
@@ -217,21 +219,21 @@ This ensures no duplicate transaction updates or corruption.
 
 ## Assumptions & Tradeoffs
 
-* Event ordering is assumed to be mostly sequential
-* Out-of-order events are handled but not strictly enforced
-* Synchronous processing used for simplicity
-* No message queue (e.g., Kafka/SQS) used — would be added for scale
-* Focused on correctness and clarity over distributed system complexity
+- Event ordering is assumed to be mostly sequential
+- Out-of-order events are handled but not strictly enforced
+- Synchronous processing used for simplicity
+- No message queue (e.g., Kafka/SQS) used — would be added for scale
+- Focused on correctness and clarity over distributed system complexity
 
 ---
 
 ## Future Improvements
 
-* Introduce async processing with queue (Kafka/SQS)
-* Add retry & dead-letter queue for failed events
-* Stronger state machine for transaction lifecycle
-* Caching layer for high-frequency queries
-* Monitoring & alerting for discrepancies
+- Introduce async processing with queue (Kafka/SQS)
+- Add retry & dead-letter queue for failed events
+- Stronger state machine for transaction lifecycle
+- Caching layer for high-frequency queries
+- Monitoring & alerting for discrepancies
 
 ---
 
@@ -239,9 +241,9 @@ This ensures no duplicate transaction updates or corruption.
 
 This implementation prioritizes:
 
-* correctness
-* simplicity
-* clarity of system behavior
+- correctness
+- simplicity
+- clarity of system behavior
 
 over unnecessary complexity.
 

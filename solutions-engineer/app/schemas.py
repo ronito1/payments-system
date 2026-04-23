@@ -7,6 +7,7 @@ from datetime import datetime
 # Merchant
 # -----------------------------
 class MerchantBase(BaseModel):
+    """Base schema for Merchant data."""
     name: str
 
 
@@ -25,6 +26,7 @@ class Merchant(MerchantBase):
 # Transaction
 # -----------------------------
 class TransactionBase(BaseModel):
+    """Base schema for Transaction data."""
     merchant_id: str
     amount: float
     currency: str
@@ -48,6 +50,7 @@ class Transaction(TransactionBase):
 # Event
 # -----------------------------
 class EventBase(BaseModel):
+    """Base schema for Event payload data."""
     event_id: str
     event_type: str
     transaction_id: str

@@ -1,7 +1,7 @@
 import requests
 import json
 
-URL = "http://127.0.0.1:8000/events/bulk"
+URL = "https://payments-system-dzt9.onrender.com/events/bulk"
 
 with open("sample_events.json") as f:
     data = json.load(f)
