@@ -59,15 +59,23 @@ def ingest_event(event: EventCreate, db: Session = Depends(get_db)):
     Ingests a single transaction event.
     Updates the transaction state based on the event type.
     """
+
+    # Idempotency check
     existing = db.query(Event).filter(Event.event_id == event.event_id).first()
     if existing:
-        return {"message": "Duplicate event ignored"}
+        return {
+            "message": "Duplicate event ignored",
+            "event_id": event.event_id,
+            "transaction_id": event.transaction_id
+        }
 
+    # Ensure merchant exists
     merchant = db.query(Merchant).filter(Merchant.id == event.merchant_id).first()
     if not merchant:
         merchant = Merchant(id=event.merchant_id, name=event.merchant_name or "")
         db.add(merchant)
 
+    # Ensure transaction exists
     txn = db.query(Transaction).filter(Transaction.id == event.transaction_id).first()
     if not txn:
         txn = Transaction(
@@ -83,6 +91,7 @@ def ingest_event(event: EventCreate, db: Session = Depends(get_db)):
 
     db.flush()
 
+    # Insert event
     new_event = Event(
         event_id=event.event_id,
         event_type=event.event_type,
@@ -95,7 +104,7 @@ def ingest_event(event: EventCreate, db: Session = Depends(get_db)):
     )
     db.add(new_event)
 
-    # status updates
+    # Status updates
     if event.event_type == "payment_initiated":
         txn.status = "initiated"
     elif event.event_type == "payment_processed":
@@ -108,7 +117,20 @@ def ingest_event(event: EventCreate, db: Session = Depends(get_db)):
     txn.updated_at = datetime.utcnow()
 
     db.commit()
-    return {"message": "Event processed successfully"}
+
+    # 🔥 Status-specific response
+    status_messages = {
+        "payment_initiated": "Payment initiated successfully",
+        "payment_processed": "Payment processed successfully",
+        "payment_failed": "Payment failed",
+        "settled": "Payment settled successfully"
+    }
+
+    return {
+        "message": status_messages.get(event.event_type, "Event processed successfully"),
+        "event_id": event.event_id,
+        "transaction_id": event.transaction_id
+    }
 
 
 # -----------------------------
@@ -120,27 +142,32 @@ def ingest_bulk(events: List[EventCreate], db: Session = Depends(get_db)):
     Ingests multiple transaction events in bulk.
     Handles deduplication and bulk transaction state updates.
     """
+
     processed = 0
     skipped = 0
     seen_event_ids = set()
 
     for event in events:
 
+        # Skip duplicates inside the same batch
         if event.event_id in seen_event_ids:
             skipped += 1
             continue
         seen_event_ids.add(event.event_id)
 
+        # Check if event already exists in the database
         existing = db.query(Event).filter(Event.event_id == event.event_id).first()
         if existing:
             skipped += 1
             continue
 
+        # Ensure merchant exists
         merchant = db.query(Merchant).filter(Merchant.id == event.merchant_id).first()
         if not merchant:
             merchant = Merchant(id=event.merchant_id, name=event.merchant_name or "")
             db.add(merchant)
 
+        # Ensure transaction exists
         txn = db.query(Transaction).filter(Transaction.id == event.transaction_id).first()
         if not txn:
             txn = Transaction(
@@ -156,6 +183,7 @@ def ingest_bulk(events: List[EventCreate], db: Session = Depends(get_db)):
 
         db.flush()
 
+        # Insert event
         new_event = Event(
             event_id=event.event_id,
             event_type=event.event_type,
@@ -168,7 +196,7 @@ def ingest_bulk(events: List[EventCreate], db: Session = Depends(get_db)):
         )
         db.add(new_event)
 
-        # update status
+        # Status update
         if event.event_type == "payment_initiated":
             txn.status = "initiated"
         elif event.event_type == "payment_processed":
@@ -182,7 +210,12 @@ def ingest_bulk(events: List[EventCreate], db: Session = Depends(get_db)):
         processed += 1
 
     db.commit()
-    return {"processed": processed, "skipped_duplicates": skipped}
+
+    return {
+        "processed": processed,
+        "skipped_duplicates": skipped,
+        "message": "Bulk events processed successfully"
+    }
 
 
 # -----------------------------
@@ -201,8 +234,10 @@ def get_transactions(
     """
     Retrieves transactions with optional filtering and pagination.
     """
+    # Base query
     query = db.query(Transaction)
 
+    # Apply filters if provided
     if merchant_id:
         query = query.filter(Transaction.merchant_id == merchant_id)
 
@@ -215,8 +250,10 @@ def get_transactions(
     if end_date:
         query = query.filter(Transaction.created_at <= datetime.fromisoformat(end_date))
 
+    # Sort by latest first
     query = query.order_by(Transaction.created_at.desc())
 
+    # Apply pagination
     offset = (page - 1) * limit
     txns = query.offset(offset).limit(limit).all()
 
@@ -231,11 +268,13 @@ def get_transaction(txn_id: str, db: Session = Depends(get_db)):
     """
     Retrieves a single transaction and its entire event history.
     """
+    # Fetch the transaction
     txn = db.query(Transaction).filter(Transaction.id == txn_id).first()
 
     if not txn:
         return {"error": "Transaction not found"}
 
+    # Fetch all related events sorted by timestamp
     events = db.query(Event)\
         .filter(Event.transaction_id == txn_id)\
         .order_by(Event.timestamp)\
@@ -248,13 +287,14 @@ def get_transaction(txn_id: str, db: Session = Depends(get_db)):
 
 
 # -----------------------------
-# RECONCILIATION SUMMARY (GROUPED)
+# RECONCILIATION SUMMARY
 # -----------------------------
 @app.get("/reconciliation/summary")
 def get_summary(db: Session = Depends(get_db)):
     """
     Generates a reconciliation summary grouped by merchant and transaction status.
     """
+    # Aggregate transactions by merchant and status
     results = db.query(
         Transaction.merchant_id,
         Transaction.status,
@@ -282,8 +322,9 @@ def get_summary(db: Session = Depends(get_db)):
 @app.get("/reconciliation/discrepancies")
 def get_discrepancies(db: Session = Depends(get_db)):
     """
-    Identifies problematic transactions, such as those stuck in an initiated state.
+    Identifies problematic transactions stuck in intermediate states.
     """
+    # Find transactions that are stuck in 'initiated' state
     problematic = db.query(Transaction)\
         .filter(Transaction.status == "initiated")\
         .all()
