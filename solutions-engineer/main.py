@@ -34,7 +34,7 @@ def startup():
 @app.get("/")
 def read_root():
     """Health check endpoint to verify API is running."""
-    return {"message": "Welcome to the Payment Reconciliation API"}
+    return {"message": "Payment Reconciliation API", "docs": "https://payments-system-dzt9.onrender.com/docs", "health_check": "/test-db"}
 
 
 # -----------------------------
