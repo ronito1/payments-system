@@ -17,13 +17,13 @@ The system supports bulk ingestion, transaction querying, event tracking, and re
 * **ORM:** SQLAlchemy
 * **Deployment:** Render
 
-### Core Design Principles
+## Design Decisions & Tradeoffs
 
-* **Event-driven model** → transactions evolve based on events
-* **Idempotency-first ingestion** → duplicate events are ignored safely
-* **Database-driven querying** → filtering, aggregation, pagination handled in SQL
-* **Separation of concerns** → events, transactions, merchants modeled independently
-
+- Used event-driven model to ensure auditability and traceability
+- Chose PostgreSQL for strong relational integrity and aggregation queries
+- Implemented idempotency using event_id checks to prevent duplicate processing
+- Used synchronous processing for simplicity; async queues can be added for scale
+- Prioritized SQL-based aggregation over application logic for performance
 ---
 
 ## Database Schema
