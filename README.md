@@ -118,15 +118,16 @@ These indexes support efficient filtering, aggregation, and reconciliation queri
 * `GET /reconciliation/discrepancies`
 
 ---
+## Live API
 
-## Deployment
+Base URL:
+https://payments-system-dzt9.onrender.com
 
-* **Live API:**
-  https://payments-system-dzt9.onrender.com
+Swagger Docs: --> where you can test the API
+https://payments-system-dzt9.onrender.com/docs
 
-* **Swagger Docs:**
-  https://payments-system-dzt9.onrender.com/docs
-
+Health Check:
+https://payments-system-dzt9.onrender.com/test-db
 ---
 
 ## Setup Instructions (Local)
