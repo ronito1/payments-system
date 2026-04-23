@@ -240,7 +240,7 @@ def get_transaction(txn_id: str, db: Session = Depends(get_db)):
 @app.get("/reconciliation/summary")
 def get_summary(db: Session = Depends(get_db)):
 
-    summary = db.query(
+    results = db.query(
         Transaction.merchant_id,
         Transaction.status,
         func.count().label("count"),
@@ -250,7 +250,15 @@ def get_summary(db: Session = Depends(get_db)):
         Transaction.status
     ).all()
 
-    return summary
+    return [
+        {
+            "merchant_id": r.merchant_id,
+            "status": r.status,
+            "count": r.count,
+            "total_amount": float(r.total_amount or 0)
+        }
+        for r in results
+    ]
 
 
 # -----------------------------
