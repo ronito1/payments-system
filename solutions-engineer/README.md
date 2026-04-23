@@ -167,25 +167,39 @@ postman_collection.json
 Import into Postman and run requests to test all APIs.
 
 ---
-
 ## Data & Testing
 
-* The system was tested using:
+The system is designed and tested to handle large-scale event ingestion.
 
-  * Bulk ingestion
-  * Sample dataset (~10,000 events across multiple merchants)
-* Dataset includes:
+### Dataset Characteristics
 
-  * successful transactions
+* Supports **10,000+ events across multiple merchants (3+)**
+* Includes a realistic mix of:
+
+  * successful transactions (initiated → processed → settled)
   * failed transactions
-  * duplicate events
-  * pending/unsettled transactions
+  * duplicate events (same `event_id`)
+  * inconsistent or unreconciled states (e.g., stuck in initiated/processed)
 
-This validates:
+### Testing Approach
 
-* idempotency
-* reconciliation accuracy
-* query performance under load
+* Bulk ingestion endpoint (`/events/bulk`) was used to simulate high-volume event processing
+* Duplicate handling was verified via:
+
+  * repeated event submissions
+  * batch-level deduplication
+* Reconciliation endpoints were validated to:
+
+  * correctly aggregate transaction states
+  * identify incomplete or inconsistent transactions
+
+### Note
+
+Due to deployment constraints, full dataset ingestion is not persisted in the live environment, but the system is designed to handle such scale efficiently through:
+
+* indexed queries
+* database-level aggregation
+* idempotent event processing
 
 ---
 
