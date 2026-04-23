@@ -1,0 +1,195 @@
+{
+  "info": {
+    "_postman_id": "8977c625-a282-497d-a6da-fc0078ef9795",
+    "name": "Payment Reconciliation API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "54246220",
+    "_collection_link": "https://go.postman.co/collection/54246220-8977c625-a282-497d-a6da-fc0078ef9795?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Create Event",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"event_id\": \"postman_evt_1\",\n  \"event_type\": \"payment_initiated\",\n  \"transaction_id\": \"postman_txn_1\",\n  \"merchant_id\": \"m1\",\n  \"merchant_name\": \"Postman Store\",\n  \"amount\": 100,\n  \"currency\": \"INR\",\n  \"timestamp\": \"2026-01-01T10:00:00\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://payments-system-dzt9.onrender.com/events",
+          "protocol": "https",
+          "host": [
+            "payments-system-dzt9",
+            "onrender",
+            "com"
+          ],
+          "path": [
+            "events"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Bulk Events",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "[\n  {\n    \"event_id\": \"bulk_evt_1\",\n    \"event_type\": \"payment_initiated\",\n    \"transaction_id\": \"bulk_txn_1\",\n    \"merchant_id\": \"m_bulk\",\n    \"merchant_name\": \"Bulk Store\",\n    \"amount\": 50,\n    \"currency\": \"INR\",\n    \"timestamp\": \"2026-01-01T10:00:00\"\n  },\n  {\n    \"event_id\": \"bulk_evt_1\",\n    \"event_type\": \"payment_initiated\",\n    \"transaction_id\": \"bulk_txn_1\",\n    \"merchant_id\": \"m_bulk\",\n    \"merchant_name\": \"Bulk Store\",\n    \"amount\": 50,\n    \"currency\": \"INR\",\n    \"timestamp\": \"2026-01-01T10:00:00\"\n  }\n]",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://payments-system-dzt9.onrender.com/events/bulk",
+          "protocol": "https",
+          "host": [
+            "payments-system-dzt9",
+            "onrender",
+            "com"
+          ],
+          "path": [
+            "events",
+            "bulk"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Transactions",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://payments-system-dzt9.onrender.com/transactions",
+          "protocol": "https",
+          "host": [
+            "payments-system-dzt9",
+            "onrender",
+            "com"
+          ],
+          "path": [
+            "transactions"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Transaction Details",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://payments-system-dzt9.onrender.com/transactions/postman_txn_1",
+          "protocol": "https",
+          "host": [
+            "payments-system-dzt9",
+            "onrender",
+            "com"
+          ],
+          "path": [
+            "transactions",
+            "postman_txn_1"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Filtered Transactions",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://payments-system-dzt9.onrender.com/transactions?merchant_id=m1&status=initiated",
+          "protocol": "https",
+          "host": [
+            "payments-system-dzt9",
+            "onrender",
+            "com"
+          ],
+          "path": [
+            "transactions"
+          ],
+          "query": [
+            {
+              "key": "merchant_id",
+              "value": "m1"
+            },
+            {
+              "key": "status",
+              "value": "initiated"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Reconciliation Summary",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://payments-system-dzt9.onrender.com/reconciliation/summary",
+          "protocol": "https",
+          "host": [
+            "payments-system-dzt9",
+            "onrender",
+            "com"
+          ],
+          "path": [
+            "reconciliation",
+            "summary"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Discrepancies",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://payments-system-dzt9.onrender.com/reconciliation/discrepancies",
+          "protocol": "https",
+          "host": [
+            "payments-system-dzt9",
+            "onrender",
+            "com"
+          ],
+          "path": [
+            "reconciliation",
+            "discrepancies"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
