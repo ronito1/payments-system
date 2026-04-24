@@ -26,6 +26,18 @@ The system supports bulk ingestion, transaction querying, event tracking, and re
 - Prioritized SQL-based aggregation over application logic for performance
 ---
 
+### Note
+
+A live deployment is provided, so setting up a database locally is optional for evaluation.
+
+
+## Environment Variables
+
+Create a `.env` file and add:
+
+DATABASE_URL=postgresql://<user>:<password>@<host>:<port>/<database>
+---
+
 ## Database Schema
 
 ### Merchants
